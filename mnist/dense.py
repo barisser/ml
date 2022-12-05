@@ -5,11 +5,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 
-transform = transforms.ToTensor()
-training_data = datasets.MNIST('../data', train=True, download=True, transform=transform)
-validation_data = datasets.MNIST('../data', train=False, transform=transform)
-train_loader = torch.utils.data.DataLoader(training_data, batch_size=200)
-test_loader = torch.utils.data.DataLoader(validation_data, batch_size=200)
 
 class Net(nn.Module):
     def __init__(self, lr=0.01):
@@ -61,11 +56,15 @@ class Net(nn.Module):
             loss, correct, count, percent))
 
 
-model = Net()
+if __name__ == "__main__":
 
-for _ in range(8):
-    model.fit(train_loader, epochs=1)
-    model.test(test_loader)
-import pdb;pdb.set_trace()
+    for _ in range(8):
+        model = Net()
 
-#class Model(nn.Module)
+        transform = transforms.ToTensor()
+        training_data = datasets.MNIST('../data', train=True, download=True, transform=transform)
+        validation_data = datasets.MNIST('../data', train=False, transform=transform)
+        train_loader = torch.utils.data.DataLoader(training_data, batch_size=200)
+        test_loader = torch.utils.data.DataLoader(validation_data, batch_size=200)
+        model.fit(train_loader, epochs=1)
+        model.test(test_loader)

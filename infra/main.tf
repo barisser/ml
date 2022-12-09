@@ -29,6 +29,10 @@ resource "aws_instance" "my_instance" {
   }
 }
 
+resource "aws_eip" "my_eip" {
+  instance = "${aws_instance.my_instance.id}"
+}
+
 # Create a security group for the EC2 instance
 resource "aws_security_group" "my_security_group" {
   name        = "my-ec2-security-group"

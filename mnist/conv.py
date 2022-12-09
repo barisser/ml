@@ -19,11 +19,11 @@ class Net(nn.Module):
         max pool in 2d
         2 dense layers
         """
-        self.conv1 = nn.Conv2d(1, 4, 3, 1)
-        self.conv2 = nn.Conv2d(4, 12, 3, 1)
+        self.conv1 = nn.Conv2d(1, 10, 3, 1)
+        self.conv2 = nn.Conv2d(10, 20, 3, 1)
 
-        self.dense1 = nn.Linear(1728, 100)
-        self.dense2 = nn.Linear(100, 10)
+        self.dense1 = nn.Linear(2880, 200)
+        self.dense2 = nn.Linear(200, 10)
 
         self.lr = lr
         self.optimizer = optim.Adadelta(self.parameters(), lr=self.lr)
@@ -73,6 +73,11 @@ class Net(nn.Module):
 
 if __name__ == "__main__":
     model = Net()
+    transform = transforms.ToTensor()
+    training_data = datasets.MNIST('../data', train=True, download=True, transform=transform)
+    validation_data = datasets.MNIST('../data', train=False, transform=transform)
+    train_loader = torch.utils.data.DataLoader(training_data, batch_size=200)
+    test_loader = torch.utils.data.DataLoader(validation_data, batch_size=200)
 
     epochs = 20
     for _ in range(epochs):

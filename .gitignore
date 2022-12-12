@@ -5,3 +5,4 @@ data/*
 *tfstate*
 *.terraform*
 *.csv
+*.model

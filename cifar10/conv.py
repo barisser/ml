@@ -1,5 +1,3 @@
-import os
-
 from torchvision import datasets, transforms
 import torch.nn as nn
 import torch
@@ -7,23 +5,34 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchinfo
 
-
 class Net(nn.Module):
-    def __init__(self, lr=1.0):
+    def __init__(self, lr=1.):
         super(Net, self).__init__()
-        self.dense1 = nn.Linear(3072, 100)
-        self.dense2 = nn.Linear(100, 10)
+        self.conv1 =  nn.Conv2d(3, 16, 3, 1)
+        self.batch2dnorm1 = nn.BatchNorm2d(16)
+        self.conv2 = nn.Conv2d(16, 32, 3, 1)
+        self.batch2dnorm2 = nn.BatchNorm2d(32)
+
+        self.dense1 = nn.Linear(6272, 50)
+        self.dense2 = nn.Linear(50, 10)
 
         self.lr = lr
         self.optimizer = optim.Adam(self.parameters(), lr=self.lr)
 
 
     def forward(self, X):
-        X = X.flatten(1)
-        y = self.dense1(X)
+        y = self.conv1(X)
+        y = self.batch2dnorm1(y)
         y = F.relu(y)
+
+        y = self.conv2(y)
+        y = self.batch2dnorm2(y)
+        y = F.relu(y)
+        y = F.max_pool2d(y, 2)
+
+        y = F.relu(self.dense1(y.flatten(1)))
         y = F.relu(self.dense2(y))
-        return F.softmax(y)
+        return y #F.softmax(y, dim=1)
 
     def fit(self, data_loader, device=torch.device('cpu'), epochs=1):
         self.train()
@@ -35,12 +44,7 @@ class Net(nn.Module):
                 loss = F.nll_loss(output, Y)
                 loss.backward()
                 self.optimizer.step()
-
-                if batch_id % 50 == 0:
-                    prediction = output.argmax(dim=1, keepdim=True)
-                    correct = prediction.eq(Y.view_as(prediction)).sum().item()
-                    percent = round(correct / data_loader.batch_size * 100, 2)
-                    print("Epoch: {}, Batch {}, Accuracy: {}, Loss: {}".format(epoch, batch_id, percent, loss))
+                print("Epoch: {}, Batch {}, loss {}".format(epoch, batch_id, loss))
 
 
     def test(self, data_loader, device=torch.device('cpu')):
@@ -64,9 +68,6 @@ class Net(nn.Module):
 
 if __name__ == "__main__":
     model = Net()
-    if os.path.exists('dense.model'):
-        model.load_state_dict(torch.load('dense.model'))
-        
     transform = transforms.ToTensor()
     training_data = datasets.CIFAR10('../data', train=True, download=True, transform=transform)
     validation_data = datasets.CIFAR10('../data', train=False, transform=transform)
@@ -79,5 +80,3 @@ if __name__ == "__main__":
         model.fit(train_loader, epochs=1)
         model.test(train_loader)
         model.test(test_loader)
-
-        torch.save(model.state_dict(), 'dense.model')

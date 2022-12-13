@@ -5,49 +5,38 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchinfo
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print("Using device={}".format(device))
+
+
 class Net(nn.Module):
-    def __init__(self, lr=1.):
+    def __init__(self):
         super(Net, self).__init__()
         self.conv1 =  nn.Conv2d(3, 16, 3, 1)
-        self.batch2dnorm1 = nn.BatchNorm2d(16)
-        self.conv2 = nn.Conv2d(16, 32, 3, 1)
-        self.batch2dnorm2 = nn.BatchNorm2d(32)
+        self.conv2 = nn.Conv2d(16, 8, 3, 1)
 
-        self.dense1 = nn.Linear(6272, 50)
-        self.dense2 = nn.Linear(50, 10)
-
-        self.lr = lr
-        self.optimizer = optim.Adam(self.parameters(), lr=self.lr)
+        self.dense1 = nn.Linear(288, 100)
+        self.dense2 = nn.Linear(100, 10)
 
 
     def forward(self, X):
         y = self.conv1(X)
-        y = self.batch2dnorm1(y)
         y = F.relu(y)
-
+        y = F.max_pool2d(y, 2)
+        
         y = self.conv2(y)
-        y = self.batch2dnorm2(y)
         y = F.relu(y)
         y = F.max_pool2d(y, 2)
 
-        y = F.relu(self.dense1(y.flatten(1)))
-        y = F.relu(self.dense2(y))
-        return y #F.softmax(y, dim=1)
+        y = torch.tanh(self.dense1(y.flatten(1)))
+        y = self.dense2(y)
+        return y
+    
+    def predict(self, x):
+        y = self(x)
+        return torch.max(y, dim=1)
 
-    def fit(self, data_loader, device=torch.device('cpu'), epochs=1):
-        self.train()
-        for epoch in range(epochs):
-            for batch_id, (X, Y) in enumerate(data_loader):
-                X, Y = X.to(device), Y.to(device)
-                self.optimizer.zero_grad()
-                output = self(X)
-                loss = F.nll_loss(output, Y)
-                loss.backward()
-                self.optimizer.step()
-                print("Epoch: {}, Batch {}, loss {}".format(epoch, batch_id, loss))
-
-
-    def test(self, data_loader, device=torch.device('cpu')):
+    def test(self, data_loader, device=device):
         model.eval()
         loss = 0
         correct = 0
@@ -55,28 +44,45 @@ class Net(nn.Module):
             for X, Y in data_loader:
                 X, Y = X.to(device), Y.to(device)
                 output = self(X)
-                loss += F.nll_loss(output, Y, reduction='sum')
                 prediction = output.argmax(dim=1, keepdim=True)
                 correct += prediction.eq(Y.view_as(prediction)).sum().item()
 
-        loss /= len(data_loader)
         count = len(data_loader) * data_loader.batch_size
         percent = round(correct / count * 100, 2)
-        print("Test: Average loss: {}, Accuracy: {} / {} -> {}".format(
-            loss, correct, count, percent))
+        print("Test: Accuracy: {} / {} -> {}".format(
+            correct, count, percent))
 
+        
 
 if __name__ == "__main__":
-    model = Net()
-    transform = transforms.ToTensor()
-    training_data = datasets.CIFAR10('../data', train=True, download=True, transform=transform)
-    validation_data = datasets.CIFAR10('../data', train=False, transform=transform)
+    model = Net().to(device=device)
+    if torch.cuda.is_available():
+        model.cuda()
+        
+    transforms = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.4915, 0.4823, 0.4468), (0.2470, 0.2435, 0.2616))])
+
+    training_data = datasets.CIFAR10('../data', train=True, download=True, transform=transforms)
+    validation_data = datasets.CIFAR10('../data', train=False, transform=transforms)
     train_loader = torch.utils.data.DataLoader(training_data, batch_size=200, shuffle=True)
     test_loader = torch.utils.data.DataLoader(validation_data, batch_size=200, shuffle=True)
     print(torchinfo.summary(model))
 
-    for i in range(30):
-        print(i)
-        model.fit(train_loader, epochs=1)
-        model.test(train_loader)
+
+    learning_rate = 0.01
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+    n_epochs = 100
+    loss_func = nn.CrossEntropyLoss().to(device=device)
+    for epoch in range(n_epochs):
+        for imgs, labels in train_loader:
+            imgs, labels = imgs.to(device=device), labels.to(device=device)
+            outputs = model(imgs)
+            loss = loss_func(outputs, labels)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
         model.test(test_loader)
+        print("Epoch: %d, Loss: %f" % (epoch, float(loss)))
+    
+    model.test(test_loader)
+

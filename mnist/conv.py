@@ -13,6 +13,10 @@ validation_data = datasets.MNIST('../data', train=False, transform=transform)
 train_loader = torch.utils.data.DataLoader(training_data, batch_size=200)
 test_loader = torch.utils.data.DataLoader(validation_data, batch_size=200)
 
+default_device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+print("Using device={}".format(default_device))
+
 class Net(nn.Module):
     def __init__(self, lr=1.0):
         super(Net, self).__init__()
@@ -40,7 +44,7 @@ class Net(nn.Module):
         y2 = F.relu(self.dense2(y2))
         return F.log_softmax(y2, dim=1)
 
-    def fit(self, data_loader, device=torch.device('cpu'), epochs=1, outpath=None, print_results_period=10):
+    def fit(self, data_loader, device=torch.device(default_device), epochs=1, outpath=None, print_results_period=10):
         self.train()
         total_data = data_loader.batch_size * len(data_loader)
         for epoch in range(epochs):
@@ -60,7 +64,7 @@ class Net(nn.Module):
                 torch.save(model.state_dict(), outpath)
 
 
-    def test(self, data_loader, device=torch.device('cpu')):
+    def test(self, data_loader, device=torch.device(default_device)):
         model.eval()
         loss = 0
         correct = 0
@@ -81,7 +85,9 @@ class Net(nn.Module):
 
 if __name__ == "__main__":
     model = Net()
-
+    if torch.cuda.is_available():
+        model.cuda()
+    
     modelpath = 'mnist_conv.model'
     if os.path.exists(modelpath):
         model.load_state_dict(torch.load(modelpath))
@@ -97,4 +103,5 @@ if __name__ == "__main__":
     for _ in range(epochs):
         model.fit(train_loader, epochs=1, outpath=modelpath)
         model.test(test_loader)
+
 

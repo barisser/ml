@@ -12,20 +12,20 @@ import torchinfo
 class Net(nn.Module):
     def __init__(self, lr=1.0):
         super(Net, self).__init__()
-        self.dense1 = nn.Linear(784, 200)
-        self.dense2 = nn.Linear(200, 50)
-        self.dense3 = nn.Linear(50, 10)
+        self.dense1 = nn.Linear(784, 512)
+        self.dense2 = nn.Linear(512, 10)
 
         self.lr = lr
         self.optimizer = optim.Adadelta(self.parameters(), lr=self.lr)
+        self.dropout = nn.Dropout(0.25)
 
 
     def forward(self, X):
         X = X.flatten(1)
         y = self.dense1(X)
         y = F.relu(y)
+        y = self.dropout(y)
         y = F.relu(self.dense2(y))
-        y = F.relu(self.dense3(y))
         return F.softmax(y, dim=1)
 
     def fit(self, data_loader, device=torch.device('cpu'), epochs=1, print_results_period=50, outpath=None):
@@ -83,4 +83,5 @@ if __name__ == "__main__":
 
     epochs = 10
     model.fit(train_loader, epochs=epochs, outpath=modelpath)
+    model.test(train_loader)
     model.test(test_loader)

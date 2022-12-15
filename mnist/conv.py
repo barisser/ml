@@ -30,7 +30,8 @@ class Net(nn.Module):
 
         self.dense1 = nn.Linear(9216, 128)
         self.dense2 = nn.Linear(128, 10)
-
+        self.dropout = nn.Dropout(0.25)
+        
         self.lr = lr
         self.optimizer = optim.Adadelta(self.parameters(), lr=self.lr)
 
@@ -41,6 +42,7 @@ class Net(nn.Module):
         y = F.max_pool2d(y, 2)
         y2 = torch.flatten(y, 1)
         y2 = F.relu(self.dense1(y2))
+        y2 = self.dropout(y2)
         y2 = F.relu(self.dense2(y2))
         return F.log_softmax(y2, dim=1)
 
